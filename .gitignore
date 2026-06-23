@@ -1,0 +1,67 @@
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.usersecrets
+*.sln.user
+
+# Visual Studio
+.vs/
+.vscode/
+*.vsproj
+*.dbproj
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Entity Framework
+*.db
+*.db-shm
+*.db-wal
+
+# InMemory / LocalDB (if any real DB files appear)
+*.mdf
+*.ldf
+*.bak
+
+# User-specific files
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+# Secrets
+secrets.json
+Properties/launchSettings.json   # ← Remove this line if you want to commit ports
+
+# Logs
+logs/
+*.log
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Rider / JetBrains
+.idea/
+*.DotSettings.user
+
+# macOS / Linux
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test results
+TestResults/

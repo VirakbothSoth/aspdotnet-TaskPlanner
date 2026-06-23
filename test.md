@@ -1,0 +1,1 @@
+dotnet aspnet-codegenerator controller -name TaskItemsController -m TaskItem -dc AppDbContext -outDir Controllers --useDefaultLayout --referenceScriptLibraries
