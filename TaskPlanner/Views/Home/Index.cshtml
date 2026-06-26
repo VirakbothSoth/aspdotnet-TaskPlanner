@@ -1,13 +1,117 @@
 ﻿@model IEnumerable<TaskPlanner.Models.TaskItem>
 @{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "VirakTasks";
+    var topLevel = Model.ToList();
+    var total = topLevel.Count;
+    var highCount = topLevel.Count(t => t.Priority == TaskPlanner.Models.Priority.High && !t.IsCompleted);
+    var completedCount = topLevel.Count(t => t.IsCompleted);
+    var dueSoon = topLevel.Count(t => !t.IsCompleted && t.EndDate.HasValue && t.EndDate.Value <= DateTime.Now.AddDays(7));
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="d-flex justify-content-between align-items-baseline mb-4">
+    <h2 class="fw-500 mb-0" style="font-weight:500">@ViewData["Title"]</h2>
+    <span class="text-muted" style="font-size:13px">@DateTime.Now.ToString("dddd, MMMM d yyyy")</span>
 </div>
+
+<div class="row g-2 mb-4">
+    <div class="col-3">
+        <div class="rounded-3 p-3" style="background:var(--bs-light); border:0.5px solid #dee2e6">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6c757d" class="mb-1">Total</div>
+            <div style="font-size:22px;font-weight:500">@total</div>
+        </div>
+    </div>
+    <div class="col-3">
+        <div class="rounded-3 p-3" style="background:var(--bs-light); border:0.5px solid #dee2e6">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6c757d" class="mb-1">High priority</div>
+            <div style="font-size:22px;font-weight:500;color:#dc3545">@highCount</div>
+        </div>
+    </div>
+    <div class="col-3">
+        <div class="rounded-3 p-3" style="background:var(--bs-light); border:0.5px solid #dee2e6">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6c757d" class="mb-1">Due soon</div>
+            <div style="font-size:22px;font-weight:500;color:#ffc107">@dueSoon</div>
+        </div>
+    </div>
+    <div class="col-3">
+        <div class="rounded-3 p-3" style="background:var(--bs-light); border:0.5px solid #dee2e6">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6c757d" class="mb-1">Completed</div>
+            <div style="font-size:22px;font-weight:500;color:#198754">@completedCount</div>
+        </div>
+    </div>
+</div>
+
 @foreach (var task in Model)
 {
-    <p>@task.Title</p>
+    var accentColor = task.IsCompleted ? "#198754" :
+                      task.Priority == TaskPlanner.Models.Priority.High ? "#dc3545" :
+                      task.Priority == TaskPlanner.Models.Priority.Medium ? "#ffc107" : "#adb5bd";
+
+    var badgeClass = task.IsCompleted ? "bg-success-subtle text-success-emphasis" :
+                     task.Priority == TaskPlanner.Models.Priority.High ? "bg-danger-subtle text-danger-emphasis" :
+                     task.Priority == TaskPlanner.Models.Priority.Medium ? "bg-warning-subtle text-warning-emphasis" :
+                     "bg-secondary-subtle text-secondary-emphasis";
+
+    var badgeLabel = task.IsCompleted ? "Done" : task.Priority.ToString();
+
+    <div class="mb-3 rounded-3 overflow-hidden" style="border:0.5px solid #dee2e6; background:#fff; display:flex">
+        <div style="width:4px; background:@accentColor; flex-shrink:0"></div>
+        <div class="p-3 flex-grow-1">
+            <a asp-controller="TaskItems"  asp-action="Details" asp-route-id="@task.Id">
+            <p class="mb-1 @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")"
+               style="font-size:15px;font-weight:500">@task.Title</p>
+            </a>
+
+            @if (!string.IsNullOrEmpty(task.Description))
+            {
+                <p class="text-muted mb-2" style="font-size:13px">@task.Description</p>
+            }
+
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge rounded-pill @badgeClass" style="font-size:11px">@badgeLabel</span>
+
+                @if (!string.IsNullOrEmpty(task.Hashtag))
+                {
+                    <span style="font-size:12px;color:#0d6efd;font-family:monospace">@task.Hashtag</span>
+                }
+
+                @if (task.EndDate.HasValue)
+                {
+                    var overdue = !task.IsCompleted && task.EndDate < DateTime.Now;
+                    <span style="font-size:12px" class="@(overdue ? "text-danger fw-semibold" : "text-muted")">
+                        @task.EndDate.Value.ToString("MMM d, yyyy")
+                        @if (overdue) { <span>(overdue)</span> }
+                    </span>
+                }
+
+                @if (!string.IsNullOrEmpty(task.Comment))
+                {
+                    <span class="text-muted" style="font-size:12px" title="@task.Comment">💬 Note</span>
+                }
+            </div>
+
+            @if (task.SubTasks.Any())
+            {
+                <div class="mt-3 pt-2" style="border-top:0.5px solid #dee2e6">
+                    <div class="mb-1" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6c757d">
+                        Subtasks — @task.SubTasks.Count(s => s.IsCompleted) / @task.SubTasks.Count done
+                    </div>
+                    @foreach (var sub in task.SubTasks)
+                    {
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            @if (sub.IsCompleted)
+                            {
+                                <span style="width:6px;height:6px;border-radius:50%;background:#198754;display:inline-block;flex-shrink:0"></span>
+                                <span class="text-muted text-decoration-line-through" style="font-size:13px">@sub.Title</span>
+                            }
+                            else
+                            {
+                                <span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #adb5bd;display:inline-block;flex-shrink:0"></span>
+                                <span style="font-size:13px">@sub.Title</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
 }
