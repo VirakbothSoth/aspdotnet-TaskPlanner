@@ -16,11 +16,16 @@ template used: ASP.Net (Model-View-Controller)
 dotnet new mvc -n TaskPlanner
 ```
 
-Packages used:
+Packages/tools used:
+(if you havent already installed)
+```
+dotnet tool install --global dotnet-ef
+```
+
 ```
 dotnet add package Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore
-dotnet add package Microsoft.EntityFrameworkCore.InMemory
-dotnet add package Microsoft.EntityFrameworkCore.SqlServer
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite
+dotnet add package Microsoft.EntityFrameworkCore.Design
 dotnet add package Microsoft.EntityFrameworkCore.Tools
 dotnet add package Microsoft.VisualStudio.Web.CodeGeneration.Design
 ```
