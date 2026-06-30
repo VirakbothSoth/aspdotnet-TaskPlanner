@@ -1,15 +1,16 @@
 ﻿@model IEnumerable<TaskPlanner.Models.TaskItem>
 @{
-    ViewData["Title"] = "VirakTasks";
+    ViewData["Title"] = "Tasks";
     var topLevel = Model.ToList();
     var total = topLevel.Count;
     var highCount = topLevel.Count(t => t.Priority == TaskPlanner.Models.Priority.High && !t.IsCompleted);
     var completedCount = topLevel.Count(t => t.IsCompleted);
     var dueSoon = topLevel.Count(t => !t.IsCompleted && t.EndDate.HasValue && t.EndDate.Value <= DateTime.Now.AddDays(7));
+    var currentSort = ViewData["CurrentSort"] as string ?? "default";
 }
 
 <div class="d-flex justify-content-between align-items-baseline mb-4">
-    <h2 class="fw-500 mb-0" style="font-weight:500">@ViewData["Title"]</h2>
+    <h2 class="fw-500 mb-0" style="font-weight:500">Welcome!</h2>
     <span class="text-muted" style="font-size:13px">@DateTime.Now.ToString("dddd, MMMM d yyyy")</span>
 </div>
 
@@ -40,78 +41,257 @@
     </div>
 </div>
 
-@foreach (var task in Model)
-{
-    var accentColor = task.IsCompleted ? "#198754" :
-                      task.Priority == TaskPlanner.Models.Priority.High ? "#dc3545" :
-                      task.Priority == TaskPlanner.Models.Priority.Medium ? "#ffc107" : "#adb5bd";
+<!-- Sort + view controls -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <label for="sortSelect" class="text-muted" style="font-size:13px">Sort by</label>
+        <select id="sortSelect" class="form-select form-select-sm" style="width:auto">
+            <option value="default">Newest</option>
+            <option value="priority_desc">Priority (high → low)</option>
+            <option value="priority_asc">Priority (low → high)</option>
+            <option value="due_asc">Due date (soonest)</option>
+            <option value="due_desc">Due date (latest)</option>
+            <option value="title_asc">Title (A → Z)</option>
+            <option value="completed">Incomplete first</option>
+        </select>
+    </div>
 
-    var badgeClass = task.IsCompleted ? "bg-success-subtle text-success-emphasis" :
-                     task.Priority == TaskPlanner.Models.Priority.High ? "bg-danger-subtle text-danger-emphasis" :
-                     task.Priority == TaskPlanner.Models.Priority.Medium ? "bg-warning-subtle text-warning-emphasis" :
-                     "bg-secondary-subtle text-secondary-emphasis";
+    <div class="btn-group btn-group-sm" role="group" aria-label="View mode">
+        <button type="button" id="cardViewBtn" class="btn btn-outline-secondary active">Card view</button>
+        <button type="button" id="checklistViewBtn" class="btn btn-outline-secondary">Checklist view</button>
+    </div>
+</div>
 
-    var badgeLabel = task.IsCompleted ? "Done" : task.Priority.ToString();
+<!-- CARD VIEW -->
+<div id="cardView">
+    @foreach (var task in Model)
+    {
+        var accentColor = task.IsCompleted ? "#198754" :
+                          task.Priority == TaskPlanner.Models.Priority.High ? "#dc3545" :
+                          task.Priority == TaskPlanner.Models.Priority.Medium ? "#ffc107" : "#adb5bd";
 
-    <div class="mb-3 rounded-3 overflow-hidden" style="border:0.5px solid #dee2e6; background:#fff; display:flex">
-        <div style="width:4px; background:@accentColor; flex-shrink:0"></div>
-        <div class="p-3 flex-grow-1">
-            <a asp-controller="TaskItems"  asp-action="Details" asp-route-id="@task.Id">
-            <p class="mb-1 @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")"
-               style="font-size:15px;font-weight:500">@task.Title</p>
-            </a>
+        var badgeClass = task.IsCompleted ? "bg-success-subtle text-success-emphasis" :
+                         task.Priority == TaskPlanner.Models.Priority.High ? "bg-danger-subtle text-danger-emphasis" :
+                         task.Priority == TaskPlanner.Models.Priority.Medium ? "bg-warning-subtle text-warning-emphasis" :
+                         "bg-secondary-subtle text-secondary-emphasis";
 
-            @if (!string.IsNullOrEmpty(task.Description))
-            {
-                <p class="text-muted mb-2" style="font-size:13px">@task.Description</p>
-            }
+        var badgeLabel = task.IsCompleted ? "Done" : task.Priority.ToString();
 
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <span class="badge rounded-pill @badgeClass" style="font-size:11px">@badgeLabel</span>
+        <div class="mb-3 rounded-3 overflow-hidden task-card" data-task-id="@task.Id" data-priority="@((int)task.Priority)" data-due="@(task.EndDate?.Ticks ?? 9999999999999)" data-title="@task.Title.ToLowerInvariant()" data-completed="@(task.IsCompleted ? "1" : "0")" data-order="@task.Id" style="border:0.5px solid #dee2e6; background:#fff; display:flex">
+            <div style="width:4px; background:@accentColor; flex-shrink:0" class="task-accent"></div>
+            <div class="p-3 flex-grow-1">
+                <div class="d-flex align-items-start gap-2">
+                    <input type="checkbox" class="form-check-input mt-1 task-toggle" data-task-id="@task.Id" @(task.IsCompleted ? "checked" : "") style="cursor:pointer">
+                    <div class="flex-grow-1">
+                        <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="text-decoration-none">
+                            <p class="mb-1 task-title @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")"
+                               style="font-size:15px;font-weight:500">@task.Title</p>
+                        </a>
 
+                        @if (!string.IsNullOrEmpty(task.Description))
+                        {
+                            <p class="text-muted mb-2" style="font-size:13px">@task.Description</p>
+                        }
+
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span class="badge rounded-pill task-badge @badgeClass" style="font-size:11px">@badgeLabel</span>
+
+                            @if (!string.IsNullOrEmpty(task.Hashtag))
+                            {
+                                <span style="font-size:12px;color:#0d6efd;font-family:monospace">@task.Hashtag</span>
+                            }
+
+                            @if (task.EndDate.HasValue)
+                            {
+                                var overdue = !task.IsCompleted && task.EndDate < DateTime.Now;
+                                <span style="font-size:12px" class="@(overdue ? "text-danger fw-semibold" : "text-muted")">
+                                    @task.EndDate.Value.ToString("MMM d, yyyy")
+                                    @if (overdue) { <span>(overdue)</span> }
+                                </span>
+                            }
+
+                            @if (!string.IsNullOrEmpty(task.Comment))
+                            {
+                                <span class="text-muted" style="font-size:12px" title="@task.Comment">💬 Note</span>
+                            }
+                        </div>
+
+                        @if (task.SubTasks.Any())
+                        {
+                            <div class="mt-3 pt-2" style="border-top:0.5px solid #dee2e6">
+                                <div class="mb-1" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6c757d">
+                                    Subtasks — @task.SubTasks.Count(s => s.IsCompleted) / @task.SubTasks.Count done
+                                </div>
+                                @foreach (var sub in task.SubTasks)
+                                {
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        @if (sub.IsCompleted)
+                                        {
+                                            <span style="width:6px;height:6px;border-radius:50%;background:#198754;display:inline-block;flex-shrink:0"></span>
+                                            <span class="text-muted text-decoration-line-through" style="font-size:13px">@sub.Title</span>
+                                        }
+                                        else
+                                        {
+                                            <span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #adb5bd;display:inline-block;flex-shrink:0"></span>
+                                            <span style="font-size:13px">@sub.Title</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- CHECKLIST VIEW -->
+<div id="checklistView" style="display:none">
+    <div class="rounded-3" style="border:0.5px solid #dee2e6; background:#fff">
+        @foreach (var task in Model)
+        {
+            <div class="d-flex align-items-center gap-2 px-3 py-2 checklist-row task-card" data-task-id="@task.Id" data-priority="@((int)task.Priority)" data-due="@(task.EndDate?.Ticks ?? 9999999999999)" data-title="@task.Title.ToLowerInvariant()" data-completed="@(task.IsCompleted ? "1" : "0")" data-order="@task.Id" style="border-bottom:0.5px solid #f1f1f1">
+                <input type="checkbox" class="form-check-input task-toggle" data-task-id="@task.Id" @(task.IsCompleted ? "checked" : "") style="cursor:pointer">
+                <span class="flex-grow-1 task-title @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")" style="font-size:14px">
+                    @task.Title
+                </span>
                 @if (!string.IsNullOrEmpty(task.Hashtag))
                 {
-                    <span style="font-size:12px;color:#0d6efd;font-family:monospace">@task.Hashtag</span>
+                    <span style="font-size:11px;color:#0d6efd;font-family:monospace">@task.Hashtag</span>
                 }
-
                 @if (task.EndDate.HasValue)
                 {
                     var overdue = !task.IsCompleted && task.EndDate < DateTime.Now;
-                    <span style="font-size:12px" class="@(overdue ? "text-danger fw-semibold" : "text-muted")">
-                        @task.EndDate.Value.ToString("MMM d, yyyy")
-                        @if (overdue) { <span>(overdue)</span> }
+                    <span style="font-size:11px;min-width:80px;text-align:right" class="@(overdue ? "text-danger fw-semibold" : "text-muted")">
+                        @task.EndDate.Value.ToString("MMM d")
                     </span>
                 }
-
-                @if (!string.IsNullOrEmpty(task.Comment))
-                {
-                    <span class="text-muted" style="font-size:12px" title="@task.Comment">💬 Note</span>
-                }
             </div>
-
-            @if (task.SubTasks.Any())
-            {
-                <div class="mt-3 pt-2" style="border-top:0.5px solid #dee2e6">
-                    <div class="mb-1" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6c757d">
-                        Subtasks — @task.SubTasks.Count(s => s.IsCompleted) / @task.SubTasks.Count done
-                    </div>
-                    @foreach (var sub in task.SubTasks)
-                    {
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            @if (sub.IsCompleted)
-                            {
-                                <span style="width:6px;height:6px;border-radius:50%;background:#198754;display:inline-block;flex-shrink:0"></span>
-                                <span class="text-muted text-decoration-line-through" style="font-size:13px">@sub.Title</span>
-                            }
-                            else
-                            {
-                                <span style="width:6px;height:6px;border-radius:50%;border:1.5px solid #adb5bd;display:inline-block;flex-shrink:0"></span>
-                                <span style="font-size:13px">@sub.Title</span>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        </div>
+        }
     </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Client-side sorting — no page reload, no server round-trip
+        const sortSelect = document.getElementById('sortSelect');
+        const cardViewEl = document.getElementById('cardView');
+        const checklistViewEl = document.getElementById('checklistView').querySelector('.rounded-3');
+
+        function getComparator(sortKey) {
+            switch (sortKey) {
+                case 'priority_desc':
+                    return (a, b) => b.dataset.priority - a.dataset.priority;
+                case 'priority_asc':
+                    return (a, b) => a.dataset.priority - b.dataset.priority;
+                case 'due_asc':
+                    return (a, b) => a.dataset.due - b.dataset.due;
+                case 'due_desc':
+                    return (a, b) => {
+                        const aHasDue = a.dataset.due !== '9999999999999';
+                        const bHasDue = b.dataset.due !== '9999999999999';
+                        if (!aHasDue && !bHasDue) return 0;
+                        if (!aHasDue) return 1;
+                        if (!bHasDue) return -1;
+                        return b.dataset.due - a.dataset.due;
+                    };
+                case 'title_asc':
+                    return (a, b) => a.dataset.title.localeCompare(b.dataset.title);
+                case 'completed':
+                    return (a, b) => a.dataset.completed - b.dataset.completed;
+                default: // 'default' = newest first
+                    return (a, b) => b.dataset.order - a.dataset.order;
+            }
+        }
+
+        function applySort(sortKey) {
+            const comparator = getComparator(sortKey);
+
+            [cardViewEl, checklistViewEl].forEach(container => {
+                const cards = Array.from(container.querySelectorAll('.task-card'));
+                cards.sort(comparator);
+                cards.forEach(card => container.appendChild(card));
+            });
+        }
+
+        sortSelect.addEventListener('change', (e) => applySort(e.target.value));
+
+        // Apply default sort on load (cards already render newest-first server-side, but keeps state consistent)
+        applySort(sortSelect.value);
+
+        // View toggle (Card / Checklist) — persisted in localStorage-free, simple session-only state
+        const cardView = document.getElementById('cardView');
+        const checklistView = document.getElementById('checklistView');
+        const cardBtn = document.getElementById('cardViewBtn');
+        const checklistBtn = document.getElementById('checklistViewBtn');
+
+        function setView(mode) {
+            if (mode === 'checklist') {
+                cardView.style.display = 'none';
+                checklistView.style.display = 'block';
+                cardBtn.classList.remove('active');
+                checklistBtn.classList.add('active');
+            } else {
+                cardView.style.display = 'block';
+                checklistView.style.display = 'none';
+                checklistBtn.classList.remove('active');
+                cardBtn.classList.add('active');
+            }
+        }
+
+        cardBtn.addEventListener('click', () => setView('card'));
+        checklistBtn.addEventListener('click', () => setView('checklist'));
+
+        // Instant complete-toggle via fetch, keeps both views in sync
+        document.querySelectorAll('.task-toggle').forEach(checkbox => {
+            checkbox.addEventListener('change', async (e) => {
+                const taskId = e.target.dataset.taskId;
+                const checked = e.target.checked;
+
+                // Optimistically update UI for both card + checklist instances of this task
+                document.querySelectorAll(`[data-task-id="${taskId}"]`).forEach(el => {
+                    if (el.classList.contains('task-toggle')) {
+                        el.checked = checked;
+                    }
+                });
+                document.querySelectorAll(`.task-title[data-task-id], .task-card[data-task-id="${taskId}"] .task-title`)
+                    .forEach(el => el.classList.toggle('text-decoration-line-through', checked));
+                document.querySelectorAll(`.task-card[data-task-id="${taskId}"] .task-title`)
+                    .forEach(el => el.classList.toggle('text-muted', checked));
+
+                try {
+                    const response = await fetch(`/TaskItems/ToggleComplete/${taskId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (!response.ok) throw new Error('Toggle failed');
+
+                    const result = await response.json();
+
+                    // If server state disagrees with optimistic update, correct it
+                    if (result.isCompleted !== checked) {
+                        e.target.checked = result.isCompleted;
+                    }
+
+                    // Keep sort order accurate (e.g. "Incomplete first" should re-shuffle on toggle)
+                    document.querySelectorAll(`[data-task-id="${taskId}"]`).forEach(el => {
+                        if (el.classList.contains('task-card')) {
+                            el.dataset.completed = (result.isCompleted ?? checked) ? '1' : '0';
+                        }
+                    });
+                    applySort(sortSelect.value);
+                } catch (err) {
+                    console.error('Could not update task:', err);
+                    // Revert UI on failure
+                    e.target.checked = !checked;
+                    document.querySelectorAll(`[data-task-id="${taskId}"].task-toggle`).forEach(el => {
+                        el.checked = !checked;
+                    });
+                    alert('Could not update task. Please check your connection and try again.');
+                }
+            });
+        });
+    </script>
 }

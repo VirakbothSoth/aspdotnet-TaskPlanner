@@ -19,10 +19,26 @@ namespace TaskPlanner.Controllers
         }
 
         // GET: TaskItems
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string sort = "default")
         {
-            var appDbContext = _context.TaskItems.Include(t => t.ParentTask);
-            return View(await appDbContext.ToListAsync());
+            var tasks = _context.TaskItems
+                .Include(t => t.SubTasks)
+                .Where(t => t.ParentTaskId == null)   // top-level tasks only
+                .AsQueryable();
+
+            tasks = sort switch
+            {
+                "priority_desc" => tasks.OrderByDescending(t => t.Priority),
+                "priority_asc"  => tasks.OrderBy(t => t.Priority),
+                "due_asc"       => tasks.OrderBy(t => t.EndDate),
+                "due_desc"      => tasks.OrderByDescending(t => t.EndDate),
+                "title_asc"     => tasks.OrderBy(t => t.Title),
+                "completed"     => tasks.OrderBy(t => t.IsCompleted),
+                _               => tasks.OrderByDescending(t => t.Id)
+            };
+
+            ViewData["CurrentSort"] = sort;
+            return View(await tasks.ToListAsync());
         }
 
         // GET: TaskItems/Details/5
@@ -158,6 +174,18 @@ namespace TaskPlanner.Controllers
         private bool TaskItemExists(int id)
         {
             return _context.TaskItems.Any(e => e.Id == id);
+        }
+        // POST: TaskItems/ToggleComplete/5
+        [HttpPost]
+        public async Task<IActionResult> ToggleComplete(int id)
+        {
+            var task = await _context.TaskItems.FindAsync(id);
+            if (task == null) return NotFound();
+
+            task.IsCompleted = !task.IsCompleted;
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, isCompleted = task.IsCompleted });
         }
     }
 }
