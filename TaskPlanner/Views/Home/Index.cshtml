@@ -10,10 +10,7 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div class="d-flex align-items-center gap-3">
-        <h2 class="fw-500 mb-0" style="font-weight:500">Welcome!</h2>
-        <a asp-controller="TaskItems" asp-action="Create" class="btn btn-primary btn-sm rounded-pill px-3">+ Add Task</a>
-    </div>
+    <h2 class="fw-500 mb-0" style="font-weight:500">Welcome!</h2>
     <span class="text-muted" style="font-size:13px">@DateTime.Now.ToString("dddd, MMMM d yyyy")</span>
 </div>
 
@@ -59,10 +56,13 @@
         </select>
     </div>
 
-    <div class="btn-group btn-group-sm" role="group" aria-label="View mode">
-        <a asp-controller="TaskItems" asp-action="Index" class="me-2"> See in advanced view </a>
-        <button type="button" id="cardViewBtn" class="btn btn-outline-secondary active">Card view</button>
-        <button type="button" id="checklistViewBtn" class="btn btn-outline-secondary">Checklist view</button>
+    <div class="d-flex align-items-center gap-2">
+        <a asp-controller="TaskItems" asp-action="Create" class="btn btn-primary btn-sm rounded-pill px-3">+ Add Task</a>
+        <div class="btn-group btn-group-sm" role="group" aria-label="View mode">
+            <a asp-controller="TaskItems" asp-action="Index" class="btn btn-outline-secondary">See in advanced view</a>
+            <button type="button" id="cardViewBtn" class="btn btn-outline-secondary active">Card view</button>
+            <button type="button" id="checklistViewBtn" class="btn btn-outline-secondary">Checklist view</button>
+        </div>
     </div>
 </div>
 
@@ -87,10 +87,16 @@
                 <div class="d-flex align-items-start gap-2">
                     <input type="checkbox" class="form-check-input mt-1 task-toggle" data-task-id="@task.Id" @(task.IsCompleted ? "checked" : "") style="cursor:pointer">
                     <div class="flex-grow-1">
-                        <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="text-decoration-none">
-                            <p class="mb-1 task-title @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")"
-                               style="font-size:15px;font-weight:500">@task.Title</p>
-                        </a>
+                        <div class="d-flex align-items-start justify-content-between gap-2">
+                            <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="text-decoration-none flex-grow-1">
+                                <p class="mb-1 task-title @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")"
+                                   style="font-size:15px;font-weight:500">@task.Title</p>
+                            </a>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0" style="font-size:12px">
+                                <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="text-decoration-none text-muted" title="View task">View</a>
+                                <a asp-controller="TaskItems" asp-action="Edit" asp-route-id="@task.Id" class="text-decoration-none" style="color:#0d6efd" title="Edit task">Edit</a>
+                            </div>
+                        </div>
 
                         @if (!string.IsNullOrEmpty(task.Description))
                         {
@@ -162,9 +168,9 @@
         {
             <div class="d-flex align-items-center gap-2 px-3 py-2 checklist-row task-card" data-task-id="@task.Id" data-priority="@((int)task.Priority)" data-due="@(task.EndDate?.Ticks ?? 9999999999999)" data-title="@task.Title.ToLowerInvariant()" data-completed="@(task.IsCompleted ? "1" : "0")" data-order="@task.Id" style="border-bottom:0.5px solid #f1f1f1">
                 <input type="checkbox" class="form-check-input task-toggle" data-task-id="@task.Id" @(task.IsCompleted ? "checked" : "") style="cursor:pointer">
-                <span class="flex-grow-1 task-title @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")" style="font-size:14px">
+                <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="flex-grow-1 text-decoration-none task-title @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")" style="font-size:14px;color:inherit">
                     @task.Title
-                </span>
+                </a>
                 @if (!string.IsNullOrEmpty(task.AttachmentPath))
                 {
                     <a href="@task.AttachmentPath" target="_blank" class="text-decoration-none text-muted me-2" title="View Attachment">📎</a>
@@ -180,6 +186,10 @@
                         @task.EndDate.Value.ToString("MMM d")
                     </span>
                 }
+                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2" style="font-size:12px">
+                    <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="text-decoration-none text-muted" title="View task">View</a>
+                    <a asp-controller="TaskItems" asp-action="Edit" asp-route-id="@task.Id" class="text-decoration-none" style="color:#0d6efd" title="Edit task">Edit</a>
+                </div>
             </div>
         }
     </div>

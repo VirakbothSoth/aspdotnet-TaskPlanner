@@ -56,6 +56,7 @@ namespace TaskPlanner.Controllers
 
             var taskItem = await _context.TaskItems
                 .Include(t => t.ParentTask)
+                .Include(t => t.SubTasks)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (taskItem == null)
             {
