@@ -58,6 +58,7 @@
 
     <div class="d-flex align-items-center gap-2">
         <a asp-controller="TaskItems" asp-action="Create" class="btn btn-primary btn-sm rounded-pill px-3">+ Add Task</a>
+<input type="text" id="taskSearch" class="form-control form-control-sm ms-2" placeholder="Search tasks..." style="width:200px; display:inline-block;" />
         <div class="btn-group btn-group-sm" role="group" aria-label="View mode">
             <a asp-controller="TaskItems" asp-action="Index" class="btn btn-outline-secondary">See in advanced view</a>
             <button type="button" id="cardViewBtn" class="btn btn-outline-secondary active">Card view</button>
@@ -81,7 +82,7 @@
 
         var badgeLabel = task.IsCompleted ? "Done" : task.Priority.ToString();
 
-        <div class="mb-3 rounded-3 overflow-hidden task-card" data-task-id="@task.Id" data-priority="@((int)task.Priority)" data-due="@(task.EndDate?.Ticks ?? 9999999999999)" data-title="@task.Title.ToLowerInvariant()" data-completed="@(task.IsCompleted ? "1" : "0")" data-order="@task.Id" style="border:0.5px solid #dee2e6; background:#fff; display:flex">
+        <div class="mb-3 rounded-3 overflow-hidden task-card" data-task-id="@task.Id" data-priority="@((int)task.Priority)" data-due="@(task.EndDate?.Ticks ?? 9999999999999)" data-title="@task.Title.ToLowerInvariant()" data-hashtag="@task.Hashtag" style="border:0.5px solid #dee2e6; background:#fff; display:flex" data-order="@task.Id">
             <div style="width:4px; background:@accentColor; flex-shrink:0" class="task-accent"></div>
             <div class="p-3 flex-grow-1">
                 <div class="d-flex align-items-start gap-2">
@@ -166,7 +167,7 @@
     <div class="rounded-3" style="border:0.5px solid #dee2e6; background:#fff">
         @foreach (var task in Model)
         {
-            <div class="d-flex align-items-center gap-2 px-3 py-2 checklist-row task-card" data-task-id="@task.Id" data-priority="@((int)task.Priority)" data-due="@(task.EndDate?.Ticks ?? 9999999999999)" data-title="@task.Title.ToLowerInvariant()" data-completed="@(task.IsCompleted ? "1" : "0")" data-order="@task.Id" style="border-bottom:0.5px solid #f1f1f1">
+            <div class="d-flex align-items-center gap-2 px-3 py-2 checklist-row task-card" data-task-id="@task.Id" data-priority="@((int)task.Priority)" data-due="@(task.EndDate?.Ticks ?? 9999999999999)" data-title="@task.Title.ToLowerInvariant()" data-hashtag="@task.Hashtag" data-completed="@(task.IsCompleted ? "1" : "0")" data-order="@task.Id" style="border-bottom:0.5px solid #f1f1f1">
                 <input type="checkbox" class="form-check-input task-toggle" data-task-id="@task.Id" @(task.IsCompleted ? "checked" : "") style="cursor:pointer">
                 <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="flex-grow-1 text-decoration-none task-title @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")" style="font-size:14px;color:inherit">
                     @task.Title
@@ -315,6 +316,21 @@
                     alert('Could not update task. Please check your connection and try again.');
                 }
             });
+// Search filter
+const searchInput = document.getElementById('taskSearch');
+searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim().toLowerCase();
+    const filterCards = (container) => {
+        container.querySelectorAll('.task-card').forEach(card => {
+            const title = card.dataset.title;
+            const hashtag = card.dataset.hashtag || '';
+            const match = title.includes(query) || hashtag.toLowerCase().includes(query);
+            card.style.display = match ? '' : 'none';
+        });
+    };
+    filterCards(cardViewEl);
+    filterCards(checklistViewEl);
+});
         });
     </script>
 }
