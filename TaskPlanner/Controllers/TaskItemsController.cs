@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +15,12 @@ namespace TaskPlanner.Controllers
     public class TaskItemsController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public TaskItemsController(AppDbContext context)
+        public TaskItemsController(AppDbContext context, IWebHostEnvironment webHostEnvironment)
         {
             _context = context;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         // GET: TaskItems
@@ -63,7 +68,7 @@ namespace TaskPlanner.Controllers
         // GET: TaskItems/Create
         public IActionResult Create()
         {
-            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems, "Id", "Id");
+            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems, "Id", "Title");
             return View();
         }
 
@@ -72,15 +77,31 @@ namespace TaskPlanner.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Title,Description,Priority,EndDate,Hashtag,Comment,AttachmentPath,ParentTaskId")] TaskItem taskItem)
+        public async Task<IActionResult> Create([Bind("Id,Title,Description,Priority,EndDate,Hashtag,Comment,ParentTaskId")] TaskItem taskItem, IFormFile? attachment)
         {
             if (ModelState.IsValid)
             {
+                if (attachment != null && attachment.Length > 0)
+                {
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + attachment.FileName;
+                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await attachment.CopyToAsync(fileStream);
+                    }
+                    taskItem.AttachmentPath = "/uploads/" + uniqueFileName;
+                }
+
                 _context.Add(taskItem);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems, "Id", "Id", taskItem.ParentTaskId);
+            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems, "Id", "Title", taskItem.ParentTaskId);
             return View(taskItem);
         }
 
@@ -97,7 +118,7 @@ namespace TaskPlanner.Controllers
             {
                 return NotFound();
             }
-            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems, "Id", "Id", taskItem.ParentTaskId);
+            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems.Where(t => t.Id != id), "Id", "Title", taskItem.ParentTaskId);
             return View(taskItem);
         }
 
@@ -106,7 +127,7 @@ namespace TaskPlanner.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,Priority,EndDate,Hashtag,Comment,AttachmentPath,ParentTaskId")] TaskItem taskItem)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,Priority,EndDate,Hashtag,Comment,AttachmentPath,ParentTaskId")] TaskItem taskItem, IFormFile? attachment)
         {
             if (id != taskItem.Id)
             {
@@ -117,6 +138,32 @@ namespace TaskPlanner.Controllers
             {
                 try
                 {
+                    if (attachment != null && attachment.Length > 0)
+                    {
+                        // Delete old file if exists
+                        if (!string.IsNullOrEmpty(taskItem.AttachmentPath))
+                        {
+                            string oldFilePath = Path.Combine(_webHostEnvironment.WebRootPath, taskItem.AttachmentPath.TrimStart('/'));
+                            if (System.IO.File.Exists(oldFilePath))
+                            {
+                                System.IO.File.Delete(oldFilePath);
+                            }
+                        }
+
+                        string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+                        if (!Directory.Exists(uploadsFolder))
+                        {
+                            Directory.CreateDirectory(uploadsFolder);
+                        }
+                        string uniqueFileName = Guid.NewGuid().ToString() + "_" + attachment.FileName;
+                        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await attachment.CopyToAsync(fileStream);
+                        }
+                        taskItem.AttachmentPath = "/uploads/" + uniqueFileName;
+                    }
+
                     _context.Update(taskItem);
                     await _context.SaveChangesAsync();
                 }
@@ -133,7 +180,7 @@ namespace TaskPlanner.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems, "Id", "Id", taskItem.ParentTaskId);
+            ViewData["ParentTaskId"] = new SelectList(_context.TaskItems.Where(t => t.Id != id), "Id", "Title", taskItem.ParentTaskId);
             return View(taskItem);
         }
 
